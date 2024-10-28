@@ -75,6 +75,8 @@ bool prio_cmp_fun(struct list_elem *elem_i, struct list_elem *elem_o, void *aux)
 {
   struct thread *thread_i = list_entry(elem_i, struct thread, elem);
   struct thread *thread_o = list_entry(elem_o, struct thread, elem);
+
+  return thread_i->priority > thread_o->priority;
 }
 
 /** Initializes the threading system by transforming the code
