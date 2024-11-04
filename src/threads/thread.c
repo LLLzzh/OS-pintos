@@ -307,6 +307,7 @@ void thread_yield(void)
   old_level = intr_disable();
   if (cur != idle_thread)
     list_insert_ordered(&ready_list, &cur->elem, prio_cmp_fun, NULL);
+  printf("Yield: thread %s at tick %lld.\n", cur->name, timer_ticks());
   cur->status = THREAD_READY;
   schedule();
   intr_set_level(old_level);
@@ -572,3 +573,39 @@ allocate_tid(void)
 /** Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof(struct thread, stack);
+
+void thread_sleep(int64_t ticks)
+{
+  if (ticks <= 0)
+    return;
+  struct thread *cur = thread_current();
+
+  enum intr_level old_level = intr_disable();
+  if (cur != idle_thread)
+  {
+    cur->status = THREAD_SLEEP;
+    cur->wake_time = timer_ticks() + ticks;
+    schedule();
+  }
+  intr_set_level(old_level);
+}
+
+void check_and_wakeup_sleep_thread(void)
+{
+  struct list_elem *e = list_begin(&all_list);
+  int64_t cur_ticks = timer_ticks();
+
+  while (e != list_end(&all_list))
+  {
+    struct thread *t = list_entry(e, struct thread, allelem);
+    enum intr_level old_level = intr_disable();
+    if (t->status == THREAD_SLEEP && cur_ticks >= t->wake_time)
+    {
+      t->status = THREAD_READY;
+      list_insert_ordered(&ready_list, &t->elem, prio_cmp_fun, NULL);
+      printf("Wake up thread %s at tick %lld.\n", t->name, cur_ticks);
+    }
+    e = list_next(e);
+    intr_set_level(old_level);
+  }
+}
